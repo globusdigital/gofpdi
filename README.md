@@ -1,8 +1,8 @@
 # gofpdi
 [![MIT
-licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/phpdave11/gofpdi/master/LICENSE)
-[![Report](https://goreportcard.com/badge/github.com/phpdave11/gofpdi)](https://goreportcard.com/report/github.com/phpdave11/gofpdi)
-[![GoDoc](https://img.shields.io/badge/godoc-gofpdi-blue.svg)](https://godoc.org/github.com/phpdave11/gofpdi)
+licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/globusdigital/gofpdi/master/LICENSE)
+[![Report](https://goreportcard.com/badge/github.com/globusdigital/gofpdi)](https://goreportcard.com/report/github.com/globusdigital/gofpdi)
+[![GoDoc](https://img.shields.io/badge/godoc-gofpdi-blue.svg)](https://godoc.org/github.com/globusdigital/gofpdi)
 
 ## Go Free PDF Document Importer
 
@@ -10,7 +10,7 @@ gofpdi allows you to import an existing PDF into a new PDF.  The following PDF g
 
 - [gopdf](https://github.com/signintech/gopdf)
 
-- [gofpdf](https://github.com/phpdave11/gofpdf)
+- [gofpdf](https://github.com/globusdigital/gofpdf)
 
 ## Acknowledgments
 This package’s code is derived from the [fpdi](https://github.com/Setasign/FPDI/tree/1.6.x-legacy) library created by [Jan Slabon](https://github.com/JanSlabon).
@@ -115,8 +115,8 @@ Screenshot of PDF:
 package main
 
 import (
-	"github.com/phpdave11/gofpdf"
-	"github.com/phpdave11/gofpdf/contrib/gofpdi"
+	"github.com/globusdigital/gofpdf"
+	"github.com/globusdigital/gofpdf/contrib/gofpdi"
 	"io"
 	"net/http"
 	"os"
@@ -176,7 +176,7 @@ func DownloadFile(filepath string, url string) error {
 }
 ```
 
-Generated PDF:  [example.pdf](https://github.com/phpdave11/gofpdf/files/3178770/example.pdf)
+Generated PDF:  [example.pdf](https://github.com/globusdigital/gofpdf/files/3178770/example.pdf)
 
 Screenshot of PDF:
 ![example](https://user-images.githubusercontent.com/9421180/57713804-ca8d1300-7638-11e9-9f8e-e3f803374803.jpg)
@@ -190,8 +190,8 @@ package main
 
 import (
     "bytes"
-    "github.com/phpdave11/gofpdf"
-    "github.com/phpdave11/gofpdf/contrib/gofpdi"
+    "github.com/globusdigital/gofpdf"
+    "github.com/globusdigital/gofpdf/contrib/gofpdi"
     "io"
     "io/ioutil"
     "net/http"
@@ -239,7 +239,7 @@ func main() {
 
 Generated PDF:
 
-[example.pdf](https://github.com/phpdave11/gofpdi/files/3483219/example.pdf)
+[example.pdf](https://github.com/globusdigital/gofpdi/files/3483219/example.pdf)
 
 Screenshot of PDF:
 

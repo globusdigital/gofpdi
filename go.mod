@@ -1,5 +1,5 @@
-module github.com/phpdave11/gofpdi
+module github.com/globusdigital/gofpdi
 
-go 1.12
+go 1.23
 
-require github.com/pkg/errors v0.8.1
+
