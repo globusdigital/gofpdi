@@ -1,21 +1,17 @@
 package gofpdi
 
 import (
-	"bufio"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"math"
-	"os"
 
 	"github.com/pkg/errors"
 )
 
 type PdfWriter struct {
-	f       *os.File
-	w       *bufio.Writer
 	r       *PdfReader
 	k       float64
 	tpls    []*PdfTemplate
@@ -49,16 +45,6 @@ func (pw *PdfWriter) SetTplIdOffset(n int) {
 	pw.tpl_id_offset = n
 }
 
-func (pw *PdfWriter) Init() {
-	pw.k = 1
-	pw.obj_stack = make(map[int]*PdfValue, 0)
-	pw.don_obj_stack = make(map[int]*PdfValue, 0)
-	pw.tpls = make([]*PdfTemplate, 0)
-	pw.written_objs = make(map[*PdfObjectId][]byte, 0)
-	pw.written_obj_pos = make(map[*PdfObjectId]map[int]string, 0)
-	pw.current_obj = new(PdfObject)
-}
-
 func (pw *PdfWriter) SetUseHash(b bool) {
 	pw.use_hash = b
 }
@@ -67,20 +53,15 @@ func (pw *PdfWriter) SetNextObjectID(id int) {
 	pw.n = id - 1
 }
 
-func NewPdfWriter(filename string) (*PdfWriter, error) {
-	writer := &PdfWriter{}
-	writer.Init()
-
-	if filename != "" {
-		var err error
-		f, err := os.Create(filename)
-		if err != nil {
-			return nil, errors.Wrap(err, "Unable to create filename: "+filename)
-		}
-		writer.f = f
-		writer.w = bufio.NewWriter(f)
+func NewPdfWriter() *PdfWriter {
+	return &PdfWriter{
+		k:               1,
+		obj_stack:       make(map[int]*PdfValue),
+		don_obj_stack:   make(map[int]*PdfValue),
+		written_objs:    make(map[*PdfObjectId][]byte),
+		written_obj_pos: make(map[*PdfObjectId]map[int]string),
+		current_obj:     new(PdfObject),
 	}
-	return writer, nil
 }
 
 type PdfTemplate struct {

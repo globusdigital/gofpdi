@@ -3,6 +3,8 @@ package gofpdi
 import (
 	"fmt"
 	"io"
+
+	"github.com/pkg/errors"
 )
 
 // The Importer class to be used by a pdf generation library
@@ -47,97 +49,78 @@ func (imp *Importer) GetWriterForFile(file string) *PdfWriter {
 }
 
 func NewImporter() *Importer {
-	importer := &Importer{}
-	importer.init()
-
-	return importer
+	return &Importer{
+		readers:       make(map[string]*PdfReader, 0),
+		writers:       make(map[string]*PdfWriter, 0),
+		tplMap:        make(map[int]*TplInfo, 0),
+		writer:        NewPdfWriter(),
+		importedPages: make(map[string]int, 0),
+	}
 }
 
-func (imp *Importer) init() {
-	imp.readers = make(map[string]*PdfReader, 0)
-	imp.writers = make(map[string]*PdfWriter, 0)
-	imp.tplMap = make(map[int]*TplInfo, 0)
-	imp.writer, _ = NewPdfWriter("")
-	imp.importedPages = make(map[string]int, 0)
-}
-
-func (imp *Importer) SetSourceFile(f string) {
+func (imp *Importer) SetSourceFile(f string) error {
 	imp.sourceFile = f
 
 	// If reader hasn't been instantiated, do that now
 	if _, ok := imp.readers[imp.sourceFile]; !ok {
 		reader, err := NewPdfReader(imp.sourceFile)
 		if err != nil {
-			panic(err)
+			return errors.WithStack(err)
 		}
 		imp.readers[imp.sourceFile] = reader
 	}
 
 	// If writer hasn't been instantiated, do that now
 	if _, ok := imp.writers[imp.sourceFile]; !ok {
-		writer, err := NewPdfWriter("")
-		if err != nil {
-			panic(err)
-		}
+		writer := NewPdfWriter()
 
 		// Make the next writer start template numbers at imp.tplN
 		writer.SetTplIdOffset(imp.tplN)
 		imp.writers[imp.sourceFile] = writer
 	}
+	return nil
 }
 
-func (imp *Importer) SetSourceStream(rs *io.ReadSeeker) {
+func (imp *Importer) SetSourceStream(rs io.ReadSeeker) error {
 	imp.sourceFile = fmt.Sprintf("%v", rs)
 
 	if _, ok := imp.readers[imp.sourceFile]; !ok {
-		reader, err := NewPdfReaderFromStream(imp.sourceFile, *rs)
+		reader, err := NewPdfReaderFromStream(imp.sourceFile, rs)
 		if err != nil {
-			panic(err)
+			return errors.WithStack(err)
 		}
 		imp.readers[imp.sourceFile] = reader
 	}
 
 	// If writer hasn't been instantiated, do that now
 	if _, ok := imp.writers[imp.sourceFile]; !ok {
-		writer, err := NewPdfWriter("")
-		if err != nil {
-			panic(err)
-		}
+		writer := NewPdfWriter()
 
 		// Make the next writer start template numbers at imp.tplN
 		writer.SetTplIdOffset(imp.tplN)
 		imp.writers[imp.sourceFile] = writer
 	}
+	return nil
 }
 
-func (imp *Importer) GetNumPages() int {
-	result, err := imp.GetReader().getNumPages()
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+func (imp *Importer) GetNumPages() (int, error) {
+	return imp.GetReader().getNumPages()
 }
 
-func (imp *Importer) GetPageSizes() map[int]map[string]map[string]float64 {
-	result, err := imp.GetReader().getAllPageBoxes(1.0)
-	if err != nil {
-		panic(err)
-	}
-
-	return result
+func (imp *Importer) GetPageSizes() (map[int]map[string]map[string]float64, error) {
+	return imp.GetReader().getAllPageBoxes(1.0)
 }
 
-func (imp *Importer) ImportPage(pageno int, box string) int {
+func (imp *Importer) ImportPage(pageno int, box string) (int, error) {
 	// If page has already been imported, return existing tplN
 	pageNameNumber := fmt.Sprintf("%s-%04d", imp.sourceFile, pageno)
 	if _, ok := imp.importedPages[pageNameNumber]; ok {
-		return imp.importedPages[pageNameNumber]
+		return imp.importedPages[pageNameNumber], nil
 	}
 
 	res, err := imp.GetWriter().ImportPage(imp.GetReader(), pageno, box)
 	if err != nil {
-		panic(err)
+		return 0, errors.WithStack(err)
 	}
 
 	// Get current template id
@@ -152,7 +135,7 @@ func (imp *Importer) ImportPage(pageno int, box string) int {
 	// Cache imported page tplN
 	imp.importedPages[pageNameNumber] = tplN
 
-	return tplN
+	return tplN, nil
 }
 
 func (imp *Importer) SetNextObjectID(objId int) {
@@ -161,31 +144,31 @@ func (imp *Importer) SetNextObjectID(objId int) {
 
 // PutFormXobjects Put form xobjects and get back a map of template names (e.g.
 // /GOFPDITPL1) and their object ids (int)
-func (imp *Importer) PutFormXobjects() map[string]int {
+func (imp *Importer) PutFormXobjects() (map[string]int, error) {
 	res := make(map[string]int, 0)
 	tplNamesIds, err := imp.GetWriter().PutFormXobjects(imp.GetReader())
 	if err != nil {
-		panic(err)
+		return nil, errors.WithStack(err)
 	}
 	for tplName, pdfObjId := range tplNamesIds {
 		res[tplName] = pdfObjId.id
 	}
-	return res
+	return res, nil
 }
 
 // PutFormXobjectsUnordered Put form xobjects and get back a map of template
 // names (e.g. /GOFPDITPL1) and their object ids (sha1 hash)
-func (imp *Importer) PutFormXobjectsUnordered() map[string]string {
+func (imp *Importer) PutFormXobjectsUnordered() (map[string]string, error) {
 	imp.GetWriter().SetUseHash(true)
 	res := make(map[string]string, 0)
 	tplNamesIds, err := imp.GetWriter().PutFormXobjects(imp.GetReader())
 	if err != nil {
-		panic(err)
+		return nil, errors.WithStack(err)
 	}
 	for tplName, pdfObjId := range tplNamesIds {
 		res[tplName] = pdfObjId.hash
 	}
-	return res
+	return res, nil
 }
 
 // GetImportedObjects Get object ids (int) and their contents (string)

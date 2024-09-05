@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"strconv"
@@ -496,7 +495,7 @@ func (pr *PdfReader) resolveCompressedObject(objSpec *PdfValue) (*PdfValue, erro
 	if _, ok := compressedObj.Value.Dictionary["/Filter"]; ok {
 		filter = compressedObj.Value.Dictionary["/Filter"].Token
 		if filter != "/FlateDecode" {
-			return nil, errors.New("Unsupported filter - expected /FlateDecode, got: " + filter)
+			return nil, errors.Errorf("Unsupported filter - expected /FlateDecode, got: %q", filter)
 		}
 	}
 
@@ -504,16 +503,21 @@ func (pr *PdfReader) resolveCompressedObject(objSpec *PdfValue) (*PdfValue, erro
 		// Decompress if filter is /FlateDecode
 		// Uncompress zlib compressed data
 		var out bytes.Buffer
-		zlibReader, _ := zlib.NewReader(bytes.NewBuffer(compressedObj.Stream.Bytes))
+		zlibReader, err := zlib.NewReader(bytes.NewReader(compressedObj.Stream.Bytes))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		defer zlibReader.Close()
-		io.Copy(&out, zlibReader)
+		if _, err := io.Copy(&out, zlibReader); err != nil {
+			return nil, errors.WithStack(err)
+		}
 
 		// Set stream to uncompressed data
 		compressedObj.Stream.Bytes = out.Bytes()
 	}
 
 	// Get io.Reader for bytes
-	r := bufio.NewReader(bytes.NewBuffer(compressedObj.Stream.Bytes))
+	r := bufio.NewReader(bytes.NewReader(compressedObj.Stream.Bytes))
 
 	subObjId := 0
 	subObjPos := 0
@@ -729,11 +733,8 @@ func (pr *PdfReader) resolveObject(objSpec *PdfValue) (*PdfValue, error) {
 
 		return result, nil
 
-	} else {
-		return objSpec, nil
 	}
-
-	return &PdfValue{}, nil
+	return objSpec, nil
 }
 
 // Find the xref offset (should be at the end of the PDF)
@@ -857,7 +858,8 @@ func (pr *PdfReader) readXref() error {
 							predictor = v.Dictionary["/DecodeParms"].Dictionary["/Predictor"].Int
 						}
 
-						if columns > 4 || predictor > 12 {
+						// CS: change from 4 to 5, at least it works.
+						if columns > 5 || predictor > 12 {
 							return errors.New("Unsupported /DecodeParms - only tested with /Columns <= 4 and /Predictor <= 12")
 						}
 						paethDecode = true
@@ -968,15 +970,13 @@ func (pr *PdfReader) readXref() error {
 					}
 
 					// Now decode zlib data
-					b := bytes.NewReader(data)
-
-					z, err := zlib.NewReader(b)
+					z, err := zlib.NewReader(bytes.NewReader(data))
 					if err != nil {
 						return errors.Wrap(err, "zlib.NewReader error")
 					}
 					defer z.Close()
 
-					p, err := ioutil.ReadAll(z)
+					p, err := io.ReadAll(z)
 					if err != nil {
 						return errors.Wrap(err, "ioutil.ReadAll error")
 					}
@@ -987,7 +987,7 @@ func (pr *PdfReader) readXref() error {
 
 					// Decode result with paeth algorithm
 					var result []byte
-					b = bytes.NewReader(p)
+					b := bytes.NewReader(p)
 
 					firstFieldSize := v.Dictionary["/W"].Array[0].Int
 					middleFieldSize := v.Dictionary["/W"].Array[1].Int
@@ -1343,7 +1343,7 @@ func (pr *PdfReader) getContent(pageno int) (string, error) {
 
 	// Check to make sure page exists in pages slice
 	if len(pr.pages) < pageno {
-		return "", errors.New(fmt.Sprintf("Page %d does not exist.", pageno))
+		return "", errors.Errorf("Page %d does not exist.", pageno)
 	}
 
 	// Get page
@@ -1418,14 +1418,17 @@ func (pr *PdfReader) rebuildContentStream(content *PdfValue) ([]byte, error) {
 		case "/FlateDecode":
 			// Uncompress zlib compressed data
 			var out bytes.Buffer
-			zlibReader, _ := zlib.NewReader(bytes.NewBuffer(stream))
-			defer zlibReader.Close()
-			io.Copy(&out, zlibReader)
+			zlibReader, err := zlib.NewReader(bytes.NewReader(stream))
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			_, _ = io.Copy(&out, zlibReader)
+			_ = zlibReader.Close()
 
 			// Set stream to uncompressed data
 			stream = out.Bytes()
 		default:
-			return nil, errors.New("Unspported filter: " + filters[i].Token)
+			return nil, errors.Errorf("Unspported filter: %q", filters[i].Token)
 		}
 	}
 
