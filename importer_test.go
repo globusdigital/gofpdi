@@ -1,3 +1,3 @@
 package gofpdi
 
-var  _ = &Importer{} // yay it compiles
+var _ = &Importer{} // yay it compiles
